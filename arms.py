@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 import time
 import requests
+import os
 
 LOGIN_URL = "https://arms.sse.saveetha.com"
 ATTEND_URL = "https://arms.sse.saveetha.com/StudentPortal/AttendanceReport.aspx"
