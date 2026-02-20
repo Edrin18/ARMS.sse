@@ -1,23 +1,24 @@
 from playwright.sync_api import sync_playwright
 import time
-import winsound
-from win10toast import ToastNotifier
+import requests
 
 LOGIN_URL = "https://arms.sse.saveetha.com"
-ENROLL_URL = "https://arms.sse.saveetha.com/StudentPortal/Enrollment.aspx"
+ATTEND_URL = "https://arms.sse.saveetha.com/StudentPortal/AttendanceReport.aspx"
 MYCOURSE_URL = "https://arms.sse.saveetha.com/StudentPortal/MyCourse.aspx"
 
 USERNAME = "192524041"
 PASSWORD = "edrin¹⁶⁷²⁰⁰⁸"
 
-TARGET_CODE = "UBA0435"
-TARGET_SLOT = "Slot A"
+BOT_TOKEN = "8222719407:AAGnjdhdiUxaEmOABtnTlk8FjoGXdmzOFLY"
+CHAT_ID = "8162954190"
 
-toaster = ToastNotifier()
+def send_msg(text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
 
 print("Choose option")
-print("1 → Monitor course in slot")
-print("2 → Monitor completed course count")
+print("1 → Monitor Attendance")
+print("2 → Monitor Completed Courses")
 
 choice = input("Enter 1 or 2: ").strip()
 
@@ -32,74 +33,79 @@ with sync_playwright() as p:
     page.get_by_text("LOGIN").click()
     page.wait_for_load_state("networkidle")
 
-    # -------- OPTION 1 --------
+    # -------- ATTENDANCE --------
     if choice == "1":
-        page.goto(ENROLL_URL)
-        page.wait_for_selector("select")
-        dropdown = page.locator("select").first
+        page.goto(ATTEND_URL)
+        page.wait_for_selector("table")
 
-        print("Monitoring slot availability...")
+        attendance_map = {}
+
+        rows = page.locator("table tbody tr").all()
+        for row in rows:
+            cols = row.locator("td").all()
+            if len(cols) >= 8:
+                course = cols[2].inner_text().strip()
+                percent = cols[7].inner_text().strip()
+                attendance_map[course] = percent
+
+        send_msg("Attendance monitoring started")
 
         while True:
-            dropdown.select_option(label=TARGET_SLOT)
-            page.wait_for_timeout(2500)
+            timestamp = time.strftime("%H:%M:%S")
+            print("Checking attendance at", timestamp)
+            send_msg(f"Checking attendance at {timestamp}")
 
-            body_text = page.locator("body").inner_text()
+            page.reload()
+            page.wait_for_timeout(2000)
 
-            if TARGET_CODE in body_text:
-                print("FOUND", time.strftime("%H:%M:%S"))
-                winsound.Beep(1200, 600)
-                toaster.show_toast(
-                    "Course Found",
-                    f"{TARGET_CODE} available in {TARGET_SLOT}",
-                    duration=5,
-                    threaded=True
-                )
-            else:
-                print("Not found", time.strftime("%H:%M:%S"))
+            rows = page.locator("table tbody tr").all()
+            for row in rows:
+                cols = row.locator("td").all()
+                if len(cols) >= 8:
+                    course = cols[2].inner_text().strip()
+                    percent = cols[7].inner_text().strip()
+
+                    if attendance_map.get(course) != percent:
+                        send_msg(
+                            f"{course} attendance changed "
+                            f"{attendance_map.get(course)} → {percent}"
+                        )
+                        attendance_map[course] = percent
 
             time.sleep(30)
 
-    # -------- OPTION 2 --------
+    # -------- COMPLETED COURSES --------
     elif choice == "2":
         page.goto(MYCOURSE_URL)
         page.wait_for_selector("text=COMPLETED COURSES")
 
-        def get_completed_count():
-            # find the completed courses table
-            section = page.locator("text=COMPLETED COURSES").locator("xpath=ancestor::div[1]")
-            table = section.locator("table")
-            rows = table.locator("tbody tr")
-            return rows.count()
+        section = page.locator("text=COMPLETED COURSES").locator("xpath=ancestor::div[1]")
+        table = section.locator("table")
 
-        previous_count = get_completed_count()
-        print("Initial completed courses:", previous_count)
-
-        print("Monitoring completed courses...")
+        previous_count = table.locator("tbody tr").count()
+        send_msg(f"Completed monitoring started. Current: {previous_count}")
 
         while True:
+            timestamp = time.strftime("%H:%M:%S")
+            print("Checking completed courses at", timestamp)
+            send_msg(f"Checking completed courses at {timestamp}")
+
             page.reload()
             page.wait_for_timeout(2000)
 
-            current_count = get_completed_count()
+            current_count = table.locator("tbody tr").count()
 
-            if current_count > previous_count:
-                print("Completed courses increased:", current_count)
-                winsound.Beep(1500, 800)
-                toaster.show_toast(
-                    "Completed Courses Updated",
-                    f"Now completed: {current_count}",
-                    duration=5,
-                    threaded=True
-                )
+            if current_count != previous_count:
+                send_msg(f"Completed courses changed {previous_count} → {current_count}")
                 previous_count = current_count
-            else:
-                print("No change", time.strftime("%H:%M:%S"))
 
             time.sleep(30)
 
     else:
         print("Invalid option")
 
-    input("Press ENTER to close")
     browser.close()
+# git add .
+# git commit -m "describe what you changed"
+# git push
+#BOT_TOKEN = "8222719407:AAGnjdhdiUxaEmOABtnTlk8FjoGXdmzOFLY"
