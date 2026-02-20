@@ -6,11 +6,11 @@ LOGIN_URL = "https://arms.sse.saveetha.com"
 ATTEND_URL = "https://arms.sse.saveetha.com/StudentPortal/AttendanceReport.aspx"
 MYCOURSE_URL = "https://arms.sse.saveetha.com/StudentPortal/MyCourse.aspx"
 
-USERNAME = "192524041"
-PASSWORD = "edrin¹⁶⁷²⁰⁰⁸"
+USERNAME = os.environ["PORTAL_USER"]
+PASSWORD = os.environ["PORTAL_PASS"]
 
-BOT_TOKEN = "8222719407:AAGnjdhdiUxaEmOABtnTlk8FjoGXdmzOFLY"
-CHAT_ID = "8162954190"
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+CHAT_ID = os.environ["CHAT_ID"]
 
 def send_msg(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
